@@ -1,7 +1,9 @@
 Revision history for CUP
 
 Unreleased version
-	Changes made since 0.2.0:
-		* 
-0.2.0 DCOLLINS December 27 2008
+	* 
+0.2.1 DCOLLINS January 1 2009
+	* Changed the edit cutoff to be 0:00 today
+	* Changed regexen to not count the 'placeholder' lines that I was using for testing
+0.2.0 DCOLLINS December 30 2008
 	* Initial version

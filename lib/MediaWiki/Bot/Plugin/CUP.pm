@@ -2,7 +2,7 @@ package MediaWiki::Bot::Plugin::CUP;
 
 use strict;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.1';
 
 =head1 NAME
 
@@ -93,7 +93,7 @@ sub cup_get_fa {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[9]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[9]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -114,7 +114,7 @@ sub cup_get_ga {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[5]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[5]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -135,7 +135,7 @@ sub cup_get_fl {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[6]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[6]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -156,7 +156,7 @@ sub cup_get_fs {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[8]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[8]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -177,7 +177,7 @@ sub cup_get_fpi {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[7]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[7]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -198,7 +198,7 @@ sub cup_get_fpo {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[4]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[4]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -219,8 +219,8 @@ sub cup_get_gt {
 	}
 	my @res=(0,0);
 	my @text=split(/==.+?==/, $text);
-	while ($text[11]=~/\n\#[^\#\*\:]/g) {$res[0]++}
-	while ($text[11]=~/\n\#\#[^\#\*\:]/g) {$res[1]++}
+	while ($text[11]=~/\n\#[^\#\*\:\n]/g) {$res[0]++}
+	while ($text[11]=~/\n\#\#[^\#\*\:\n]/g) {$res[1]++}
 	return \@res;
 }
 
@@ -241,8 +241,8 @@ sub cup_get_ft {
 	}
 	my @res=(0,0);
 	my @text=split(/==.+?==/, $text);
-	while ($text[10]=~/\n\#[^\#\*\:]/g) {$res[0]++}
-	while ($text[10]=~/\n\#\#[^\#\*\:]/g) {$res[1]++}
+	while ($text[10]=~/\n\#[^\#\*\:\n]/g) {$res[0]++}
+	while ($text[10]=~/\n\#\#[^\#\*\:\n]/g) {$res[1]++}
 	return \@res;
 }
 
@@ -263,7 +263,7 @@ sub cup_get_dyk {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[2]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[2]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
@@ -284,7 +284,7 @@ sub cup_get_itn {
 	}
 	my $res=0;
 	my @text=split(/==.+?==/, $text);
-	while ($text[3]=~/\n\#[^\#\*\:]/g) {$res++}
+	while ($text[3]=~/\n\#[^\#\*\:\n]/g) {$res++}
 	return $res;
 }
 
