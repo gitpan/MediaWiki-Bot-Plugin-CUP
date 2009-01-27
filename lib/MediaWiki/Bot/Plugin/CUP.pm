@@ -2,7 +2,7 @@ package MediaWiki::Bot::Plugin::CUP;
 
 use strict;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.3.0';
 
 =head1 NAME
 
@@ -36,7 +36,7 @@ Calling import from any module will, quite simply, transfer these subroutines in
 
 sub import {
 	no strict 'refs';
-	foreach my $method (qw/cup_get_all cup_get_fa cup_get_ga cup_get_fl cup_get_fs cup_get_fpi cup_get_fpo cup_get_ft cup_get_gt cup_get_dyk cup_get_itn cup_get_edits/) {
+	foreach my $method (qw/cup_get_all cup_get_item/) {
 		*{caller() . "::$method"} = \&{$method};
 	}
 }
@@ -53,27 +53,42 @@ sub cup_get_all {
 	my $self    = shift;
 	my $user    = shift;
 	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
+	my %hash;
+	my $config=$self->{'cup'};
+	unless (defined $self->{'cup'}->{'override'}) {
+		my $text=$self->get_text($self->{'cup'}->{'overridefrom'});
+		$self->{'cup'}->{'override'}=$text;
 	}
-	my ($edits, $minor, $fa, $ga, $fl, $fs, $fpi, $fpo, $ft, $gt, $dyk, $itn, $score);
-	($edits, $minor)=$self->cup_get_edits($user);
-	$edits/=10;
-	$minor/=1000;
-	$fa=50*$self->cup_get_fa($user, $text);
-	$ga=30*$self->cup_get_ga($user, $text);
-	$fl=30*$self->cup_get_fl($user, $text);
-	$fs=35*$self->cup_get_fs($user, $text);
-	$fpi=35*$self->cup_get_fpi($user, $text);
-	$fpo=25*$self->cup_get_fpo($user, $text);
-	$dyk=5*$self->cup_get_dyk($user, $text);
-	$itn=5*$self->cup_get_itn($user, $text);
-	$ft=10*${$self->cup_get_ft($user, $text)}[1];
-	$gt=5*${$self->cup_get_gt($user, $text)}[1];
-	$score=sprintf("%d", $dyk+$itn+$ga+$fl+$fpi+
-		$fpo+$fs+$fa+$ft+$gt+$edits+$minor);
-	return (sprintf("%d", $edits+$minor), $ga, $fa, 
-		$fl, $fs, $fpi, $fpo, $dyk, $itn, $ft, $gt, $score);
+	while ($self->{'cup'}->{'override'}=~/User\((.+)\) => (.+) => (.+) => (.+)/g) {
+		if ($1 eq $user) {
+			$config->{$2}->{$3}=$4;
+		}
+	}
+	foreach my $item (keys %{$config}) {
+		unless (ref($config->{$item}) eq 'HASH') {next}
+		$hash{$item}=$self->cup_get_item($user, $item, $text);
+	}
+	my %score; my $score;
+	foreach my $item (keys %hash) {
+		$score+=$config->{$item}->{'score'} * $hash{$item};
+		$score{$item}=$config->{$item}->{'score'} * $hash{$item};
+	}
+	my @return;
+	foreach my $item (@{$config->{'return'}}) {
+		if ($item->{'type'} eq 'edits') {
+			my $score;
+			foreach my $type (@{$item->{'types'}}) {
+				$score+=$score{$type};
+			}
+			push @return, $score;
+		} elsif ($item->{'type'} eq 'number') {
+			push @return, $hash{$item->{'key'}};
+		} elsif ($item->{'type'} eq 'score') {
+			push @return, $score{$item->{'key'}};		
+		}
+	}
+	push @return, $score;
+	return @return;
 }
 
 =item cup_get_fa($contestant[, $text])
@@ -84,242 +99,77 @@ Data is returned as number of claimed good or featured items.
 
 =cut
 
-sub cup_get_fa {
+sub cup_get_item {
 	my $self    = shift;
 	my $user    = shift;
+	my $item    = shift;
 	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
+	my $return = 0;
+	my $config=$self->{'cup'};
+	unless (defined $self->{'cup'}->{'override'}) {
+		my $text=$self->get_text($self->{'cup'}->{'overridefrom'});
+		$self->{'cup'}->{'override'}=$text;
 	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[9]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_ga($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_ga {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
+	while ($self->{'cup'}->{'override'}=~/User\((.+)\) => (.+) => (.+) => (.+)/g) {
+		if ($1 eq $user) {
+			$config->{$2}->{$3}=$4;
+		}
 	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[5]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_fl($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_fl {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
+#print "Checking $item for $user\n";
 	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
+		if ($config->{$item}->{'method'} eq 'regex' or $config->{$item}->{'method'} eq 'split') {
+			my $page=$config->{'submissions'};
+			$page=~s/\$USER/$user/i;
+			$text=$self->get_text($page);
+		}
 	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[6]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_fs($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_fs {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[8]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_fpi($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_fpi {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[7]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_fpo($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_fpo {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[4]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_gt($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured topics, number of articles in those topics
-
-=cut
-
-sub cup_get_gt {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my @res=(0,0);
-	my @text=split(/==.+?==/, $text);
-	while ($text[11]=~/\n\#[^\#\*\:\n]/g) {$res[0]++}
-	while ($text[11]=~/\n\#\#[^\#\*\:\n]/g) {$res[1]++}
-	return \@res;
-}
-
-=item cup_get_ft($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured topic, number of aricles in those topics.
-
-=cut
-
-sub cup_get_ft {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my @res=(0,0);
-	my @text=split(/==.+?==/, $text);
-	while ($text[10]=~/\n\#[^\#\*\:\n]/g) {$res[0]++}
-	while ($text[10]=~/\n\#\#[^\#\*\:\n]/g) {$res[1]++}
-	return \@res;
-}
-
-=item cup_get_dyk($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_dyk {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[2]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_itn($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of claimed good or featured items.
-
-=cut
-
-sub cup_get_itn {
-	my $self    = shift;
-	my $user    = shift;
-	my $text    = shift;
-	unless ($text) {
-		$text=$self->get_text("User:Garden/WikiCup/Submissions/$user");
-	}
-	my $res=0;
-	my @text=split(/==.+?==/, $text);
-	while ($text[3]=~/\n\#[^\#\*\:\n]/g) {$res++}
-	return $res;
-}
-
-=item cup_get_edits($contestant[, $text])
-
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
-
-Data is returned as number of major edits, number of minor edits since Jan 1, 2009, 00:00:00 UTC.
-
-=cut
-
-sub cup_get_edits {
-	my $self    = shift;
-	my $user    = shift;
-	my $hash={	action	=> 'query',
+	if ($config->{$item}->{'method'} eq 'split') {
+#		print "$item\n";
+		my @text = split ($config->{$item}->{'regex'}, $text);
+#		print "$text\n";
+		my $data = $text[$config->{$item}->{'index'}];
+#		print "$data\n";
+		my $regex = $config->{$item}->{'countregex'};
+#		print "$regex\n";
+		while ($data=~/$regex/g) {$return++}
+#		print "$return\n";
+	} elsif ($config->{$item}->{'method'} eq 'regex') {
+		my $regex=$config->{$item}->{'regex'};
+		if ($text and $text ne 2) {
+			$text=~/$regex/;
+			$return=$1 || 0;
+		} else {
+			$return=0;
+		}
+	} elsif ($config->{$item}->{'method'} eq 'ecquery') {
+		my $hash={	action	=> 'query',
 			list	=> 'usercontribs',
 			ucuser	=> "User:$user",
 			ucstart => '2009-01-01T00:00:00Z',
 			ucnamespace => 0,
-			uclimit	=> 5000,
+			uclimit	=> 500,
 			ucdir	=> 'newer',
-			ucshow	=> '!minor'};
-	my $res=$self->{api}->list($hash);
-	my $major=scalar(@{$res});
-	$hash={	action	=> 'query',
-		list	=> 'usercontribs',
-		ucuser	=> "User:$user",
-		ucstart => '2009-01-01T00:00:00Z',
-		ucnamespace => 0,
-		uclimit	=> 5000,
-		ucdir	=> 'newer',
-		ucshow	=> 'minor'};
-	$res=$self->{api}->list($hash);
-	my $minor=scalar(@{$res});
-	return ($major, $minor);
+			%{$config->{$item}->{'params'}}};
+		my $res=$self->{api}->list($hash);
+#		use Data::Dumper; print Dumper($hash); print Dumper($res);
+		foreach my $edit (@{$res}) {
+			if ($config->{$item}->{'notregex'}) {
+				my $regex=$config->{$item}->{'notregex'};
+				if ($edit->{'comment'} !~ /$regex/) {
+					$return++;
+				}
+			} elsif ($config->{$item}->{'regex'}) {
+				my $regex=$config->{$item}->{'regex'};
+				if ($edit->{'comment'} =~ /$regex/) {
+					$return++;
+				}
+			} else {
+				$return++;
+			}
+		}
+	}
+#print "Returning $return\n";
+	return $return;
 }
 
 1;
