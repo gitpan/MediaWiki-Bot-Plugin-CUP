@@ -2,7 +2,7 @@ package MediaWiki::Bot::Plugin::CUP;
 
 use strict;
 
-our $VERSION = '0.3.0';
+our $VERSION = '0.3.1';
 
 =head1 NAME
 
@@ -55,6 +55,7 @@ sub cup_get_all {
 	my $text    = shift;
 	my %hash;
 	my $config=$self->{'cup'};
+	if (defined $self->{'cup'}->{'override'}) {
 	unless (defined $self->{'cup'}->{'override'}) {
 		my $text=$self->get_text($self->{'cup'}->{'overridefrom'});
 		$self->{'cup'}->{'override'}=$text;
@@ -63,6 +64,7 @@ sub cup_get_all {
 		if ($1 eq $user) {
 			$config->{$2}->{$3}=$4;
 		}
+	}
 	}
 	foreach my $item (keys %{$config}) {
 		unless (ref($config->{$item}) eq 'HASH') {next}
@@ -91,11 +93,11 @@ sub cup_get_all {
 	return @return;
 }
 
-=item cup_get_fa($contestant[, $text])
+=item cup_get_item($contestant, $item[, $text])
 
-Each of these will retrieve the contestant's subscore for a particular item. $text is optional but recommended.
+Will retrieve the contestant's subscore for a particular item. $item must match the title in config exactly. $text is optional but recommended.
 
-Data is returned as number of claimed good or featured items.
+Data is returned as number, not score. For scores or for general use, use cup_get_all.
 
 =cut
 
@@ -106,6 +108,7 @@ sub cup_get_item {
 	my $text    = shift;
 	my $return = 0;
 	my $config=$self->{'cup'};
+	if (defined $self->{'cup'}->{'override'}) {
 	unless (defined $self->{'cup'}->{'override'}) {
 		my $text=$self->get_text($self->{'cup'}->{'overridefrom'});
 		$self->{'cup'}->{'override'}=$text;
@@ -114,6 +117,7 @@ sub cup_get_item {
 		if ($1 eq $user) {
 			$config->{$2}->{$3}=$4;
 		}
+	}
 	}
 #print "Checking $item for $user\n";
 	unless ($text) {
