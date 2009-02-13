@@ -2,7 +2,7 @@ package MediaWiki::Bot::Plugin::CUP;
 
 use strict;
 
-our $VERSION = '0.3.1';
+our $VERSION = '0.3.2';
 
 =head1 NAME
 
@@ -150,7 +150,6 @@ sub cup_get_item {
 			list	=> 'usercontribs',
 			ucuser	=> "User:$user",
 			ucstart => '2009-01-01T00:00:00Z',
-			ucnamespace => 0,
 			uclimit	=> 500,
 			ucdir	=> 'newer',
 			%{$config->{$item}->{'params'}}};
